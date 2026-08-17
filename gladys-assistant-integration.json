@@ -15,7 +15,7 @@
   "containers": [
     {
       "name": "npm",
-      "docker_image": "jc21/nginx-proxy-manager:2",
+      "docker_image": "ghcr.io/jeremiemercier/gladys-nginx-proxy-manager-npm:2",
       "start": "auto",
       "read_only": false,
       "memory_mb": 512,
@@ -67,8 +67,8 @@
       "type": "section",
       "label": { "en": "Access the portal", "fr": "Accéder au portail" },
       "description": {
-        "en": "The admin portal is available at http://{{gladys_host}}:{{port:admin}} (also via the \"Open\" link on this screen). First login: admin@example.com / changeme — you will be asked to change it immediately.",
-        "fr": "Le portail d'administration est disponible sur http://{{gladys_host}}:{{port:admin}} (également via le lien « Ouvrir » de cet écran). Première connexion : admin@example.com / changeme — le changement vous sera demandé immédiatement."
+        "en": "The admin portal is available at http://{{gladys_host}}:{{port:admin}} (also via the \"Open\" link on this screen). On your first visit, Nginx Proxy Manager asks you to create the administrator account.",
+        "fr": "Le portail d'administration est disponible sur http://{{gladys_host}}:{{port:admin}} (également via le lien « Ouvrir » de cet écran). À la première visite, Nginx Proxy Manager vous demande de créer le compte administrateur."
       }
     },
     {

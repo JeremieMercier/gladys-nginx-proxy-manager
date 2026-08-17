@@ -1,0 +1,20 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+
+# Gladys sandbox build: the original script wrapped node in
+# `s6-setuidgid $PUID:$PGID`, whose setgroups() call requires CAP_SETGID even
+# when staying root. With PUID=0 it was a no-op anyway: run node directly.
+
+set -e
+
+. /usr/bin/common.sh
+
+cd /app || exit 1
+
+log_info 'Starting backend ...'
+
+while :
+do
+	bash -c "export HOME=$NPMHOME;export CERTBOT_VERSION=$CERTBOT_VERSION;node --abort_on_uncaught_exception --max_old_space_size=250 index.js"
+	sleep 1
+done

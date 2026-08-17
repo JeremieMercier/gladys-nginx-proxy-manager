@@ -39,7 +39,9 @@ test('the npm sub-container matches what the code supervises', () => {
   assert.equal(manifest.containers.length, 1);
   const [npm] = manifest.containers;
   assert.equal(npm.name, 'npm');
-  assert.match(npm.docker_image, /^jc21\/nginx-proxy-manager:/);
+  // The ADAPTED image (npm-image/Dockerfile), not the stock jc21 one: the
+  // stock image cannot boot in the capability-free Gladys sandbox.
+  assert.match(npm.docker_image, /^ghcr\.io\/jeremiemercier\/gladys-nginx-proxy-manager-npm:/);
   assert.equal(npm.start, 'auto', 'the supervisor must start NPM before the integration');
   const adminPort = npm.ports.find((port) => port.container_port === 81);
   assert.ok(adminPort, 'the admin UI port (81) must be published');

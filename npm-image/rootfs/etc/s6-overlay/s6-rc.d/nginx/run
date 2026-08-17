@@ -1,0 +1,14 @@
+#!/command/with-contenv bash
+# shellcheck shell=bash
+
+# Gladys sandbox build: same reason as backend/run — no s6-setuidgid (its
+# setgroups() needs CAP_SETGID). nginx starts as root; its workers' setuid to
+# the npm user is a no-op (uid 0 alias) and the non-fatal initgroups() warning
+# is expected in a capability-free sandbox.
+
+set -e
+
+. /usr/bin/common.sh
+
+log_info 'Starting nginx ...'
+exec nginx

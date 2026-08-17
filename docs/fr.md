@@ -1,19 +1,12 @@
 # Intégration Nginx Proxy Manager
 
-> ⚠️ **Pas encore fonctionnelle.** Le bac à sable Gladys retire actuellement
-> toutes les capabilities Linux aux sous-conteneurs, et l'image officielle de
-> Nginx Proxy Manager ne peut pas démarrer sans certaines d'entre elles
-> (création de son utilisateur, lancement de ses services, écoute sur les
-> ports 80/81/443). Le conteneur apparaît « en fonctionnement » mais rien
-> n'écoute sur son port 81. Cela nécessite une évolution du contrat des
-> sous-conteneurs côté Gladys (équivalent `cap_add`).
-
 Cette intégration **installe et fait tourner
 [Nginx Proxy Manager](https://nginxproxymanager.com/)** (NPM) directement sur
 la machine de Gladys : rien à installer à la main, pas de docker-compose à
-écrire. Gladys crée le conteneur officiel `jc21/nginx-proxy-manager`, le
-supervise, conserve ses données et vous donne un accès direct à son portail
-web.
+écrire. Gladys crée le conteneur, le supervise, conserve ses données et vous
+donne un accès direct à son portail web. (L'image utilisée est une version
+très légèrement adaptée de l'image officielle, nécessaire pour fonctionner
+dans le bac à sable sécurisé de Gladys — mêmes fonctionnalités.)
 
 ## Ce que fait l'intégration
 
@@ -39,8 +32,8 @@ web.
    de NPM, comptez une à deux minutes).
 3. Ouvrez le portail via le lien **Ouvrir** (ou l'URL affichée dans la section
    « Accéder au portail »).
-4. Première connexion : `admin@example.com` / `changeme` — NPM vous demande
-   immédiatement de changer l'e-mail et le mot de passe.
+4. À la première visite, Nginx Proxy Manager vous demande de créer le compte
+   administrateur (e-mail + mot de passe de votre choix).
 
 ## Exposer vos services sur internet
 

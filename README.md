@@ -7,30 +7,49 @@ External integration for [Gladys Assistant](https://gladysassistant.com) that
 from the official
 [integration template](https://github.com/GladysAssistant/integration-template-js).
 
-> [!WARNING]
-> **Not functional yet.** The Gladys sub-container sandbox currently drops all
-> Linux capabilities (`CapDrop=ALL` + `no-new-privileges`), and the official
-> `jc21/nginx-proxy-manager` image cannot boot without a few of them: its init
-> creates the `npm` user (`CAP_CHOWN`/`CAP_FOWNER` on `/etc/shadow`), starts
-> its services via setuid (`CAP_SETUID`/`CAP_SETGID`) and binds ports
-> 80/81/443 (`CAP_NET_BIND_SERVICE`). Symptom: the container shows "running"
-> but `s6-rc: unable to start service prepare` in its logs and nothing listens
-> on port 81 (`ECONNREFUSED`). This needs a `cap_add`-style field in the
-> Gladys sub-container contract (like the existing `read_only` opt-out) before
-> the integration can work.
-
 ## How it works
 
-The manifest declares the official `jc21/nginx-proxy-manager` image as a
-Gladys **sub-container** — the docker-compose equivalent, translated to the
-Gladys sandbox:
+The manifest declares Nginx Proxy Manager as a Gladys **sub-container** — the
+docker-compose equivalent, translated to the Gladys sandbox:
 
-| docker-compose                     | Gladys manifest (`containers` field)     |
-| ---------------------------------- | ---------------------------------------- |
-| `image: jc21/nginx-proxy-manager`  | `docker_image`                           |
-| `ports: 80, 81, 443`               | `ports` (host ports assigned by Gladys)  |
-| `volumes: ./data`, `./letsencrypt` | `volumes: ["/data", "/etc/letsencrypt"]` |
-| `restart: unless-stopped`          | `start: "auto"` + supervisor             |
+| docker-compose                     | Gladys manifest (`containers` field)      |
+| ---------------------------------- | ----------------------------------------- |
+| `image: jc21/nginx-proxy-manager`  | `docker_image` (adapted build, see below) |
+| `ports: 80, 81, 443`               | `ports` (host ports assigned by Gladys)   |
+| `volumes: ./data`, `./letsencrypt` | `volumes: ["/data", "/etc/letsencrypt"]`  |
+| `restart: unless-stopped`          | `start: "auto"` + supervisor              |
+
+### Why an adapted image ([`npm-image/`](./npm-image))
+
+The Gladys sandbox runs sub-containers with **all Linux capabilities dropped**
+(`CapDrop=ALL` + `no-new-privileges`). The stock `jc21/nginx-proxy-manager`
+image cannot boot there: its init creates the `npm` user at runtime (the
+`useradd` rewrite of `/etc/shadow` needs `CAP_CHOWN`), chowns `/data` and the
+certbot tree, and launches nginx/backend through `s6-setuidgid`, whose
+`setgroups()` call needs `CAP_SETGID` even to stay root. Symptom with the
+stock image: the container shows "running" but logs
+`s6-rc: unable to start service prepare` and nothing listens on port 81.
+
+With NPM's default `PUID=0`, that `npm` user is just an alias of root — so the
+adapted image ([`npm-image/Dockerfile`](./npm-image/Dockerfile)) bakes the
+user in at **build time** and replaces the three offending scripts with
+capability-free equivalents (everything runs as root inside a container that
+has _zero_ capabilities, which is tighter than the stock setup). Ports 80/443
+need no capability either: Docker ≥ 20.10 sets
+`net.ipv4.ip_unprivileged_port_start=0` in containers. `PUID`/`PGID`
+overrides are not supported by this build.
+
+The [`build-npm-image.yml`](.github/workflows/build-npm-image.yml) workflow
+publishes it as `ghcr.io/jeremiemercier/gladys-nginx-proxy-manager-npm:2`
+(multi-arch); re-run it to pick up upstream `jc21/nginx-proxy-manager:2`
+updates. Reproduce the sandbox locally with:
+
+```bash
+docker build -t npm-gladys npm-image
+docker run -d --cap-drop=ALL --security-opt no-new-privileges \
+  -p 8181:81 -v npm-data:/data -v npm-le:/etc/letsencrypt npm-gladys
+curl http://localhost:8181/api/   # -> {"status":"OK",...}
+```
 
 Gladys creates and supervises the container, persists its volumes, and shows
 an **Open** link for the admin portal (browsable port 81). The integration

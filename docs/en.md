@@ -1,17 +1,12 @@
 # Nginx Proxy Manager integration
 
-> ⚠️ **Not functional yet.** The Gladys sandbox currently drops all Linux
-> capabilities from sub-containers, and the official Nginx Proxy Manager
-> image cannot boot without some of them (creating its user, starting its
-> services, listening on ports 80/81/443). The container shows as "running"
-> but nothing listens on its port 81. This needs an evolution of the Gladys
-> sub-container contract (a `cap_add` equivalent).
-
 This integration **installs and runs
 [Nginx Proxy Manager](https://nginxproxymanager.com/)** (NPM) directly on the
 Gladys machine: nothing to install by hand, no docker-compose to write. Gladys
-creates the official `jc21/nginx-proxy-manager` container, supervises it,
-keeps its data and gives you direct access to its web portal.
+creates the container, supervises it, keeps its data and gives you direct
+access to its web portal. (The image is a very lightly adapted build of the
+official one, required to run inside the Gladys security sandbox — same
+features.)
 
 ## What the integration does
 
@@ -36,8 +31,8 @@ keeps its data and gives you direct access to its web portal.
    database, allow one to two minutes).
 3. Open the portal through the **Open** link (or the URL shown in the "Access
    the portal" section).
-4. First login: `admin@example.com` / `changeme` — NPM immediately asks you to
-   change the email and the password.
+4. On your first visit, Nginx Proxy Manager asks you to create the
+   administrator account (email + password of your choice).
 
 ## Expose your services on the internet
 
