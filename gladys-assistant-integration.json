@@ -3,8 +3,8 @@
   "type": "device",
   "name": "Nginx Proxy Manager",
   "description": {
-    "en": "Control your Nginx Proxy Manager instance: enable/disable proxy hosts and monitor hosts and certificates.",
-    "fr": "Pilotez votre instance Nginx Proxy Manager : activez/désactivez les proxy hosts et surveillez les hôtes et certificats."
+    "en": "Enable/disable your Nginx Proxy Manager proxy hosts and monitor hosts and certificates.",
+    "fr": "Activez/désactivez vos proxy hosts Nginx Proxy Manager et surveillez hôtes et certificats."
   },
   "version": "1.0.0",
   "docker_image": "ghcr.io/jeremiemercier/gladys-nginx-proxy-manager:1.0.0",
@@ -39,7 +39,7 @@
         "en": "Example: http://192.168.1.10:81",
         "fr": "Exemple : http://192.168.1.10:81"
       },
-      "placeholder": "http://192.168.1.10:81",
+      "placeholder": { "en": "http://192.168.1.10:81", "fr": "http://192.168.1.10:81" },
       "required": true
     },
     {
