@@ -1,46 +1,55 @@
 # Intégration Nginx Proxy Manager
 
-Cette intégration connecte Gladys Assistant à votre instance
-[Nginx Proxy Manager](https://nginxproxymanager.com/) (NPM), le gestionnaire de
-reverse proxy avec interface web.
-
-C'est une intégration volontairement **minimale** : elle ne crée aucun
-appareil. Elle mémorise l'accès à votre instance NPM, vérifie que Gladys peut
-s'y connecter, et vous donne un accès rapide au portail d'administration.
+Cette intégration **installe et fait tourner
+[Nginx Proxy Manager](https://nginxproxymanager.com/)** (NPM) directement sur
+la machine de Gladys : rien à installer à la main, pas de docker-compose à
+écrire. Gladys crée le conteneur officiel `jc21/nginx-proxy-manager`, le
+supervise, conserve ses données et vous donne un accès direct à son portail
+web.
 
 ## Ce que fait l'intégration
 
-- **Tester la connexion** : un bouton dans l'écran de configuration vérifie
-  l'URL et les identifiants, puis affiche la version de votre instance NPM et
-  le nombre de proxy hosts configurés.
-- **Portail NPM** : un bouton qui affiche l'URL du portail d'administration
-  que vous avez configurée, pour la retrouver en un clin d'œil depuis Gladys.
-- L'état de la connexion (joignable ou non) est affiché en permanence dans
-  l'écran de configuration de l'intégration.
+- **Installation automatique** : à l'installation de l'intégration, Gladys
+  télécharge l'image officielle de NPM et démarre le conteneur (l'équivalent
+  de son docker-compose, dans le bac à sable de Gladys).
+- **Supervision** : l'état du conteneur est visible dans Gladys ; l'écran de
+  configuration affiche si l'API de NPM répond, et un bouton **Vérifier Nginx
+  Proxy Manager** affiche la version en cours.
+- **Accès au portail** : un lien **Ouvrir** dans Gladys mène au portail
+  d'administration de NPM. La gestion (proxy hosts, redirections, certificats
+  SSL) se fait dans ce portail, comme d'habitude.
+- **Données persistantes** : la base de NPM (`/data`) et ses certificats
+  (`/etc/letsencrypt`) sont conservés par Gladys entre les redémarrages et les
+  mises à jour.
 
-## Prérequis
+## Installation
 
-- Une instance Nginx Proxy Manager accessible **depuis le réseau de Gladys**
-  (l'interface d'administration, port `81` par défaut).
-- Un compte **administrateur** NPM (le même e-mail/mot de passe que pour
-  l'interface web).
+1. Installez l'intégration depuis le catalogue Gladys. L'écran d'installation
+   affiche le conteneur qui sera créé (image, ports publiés, limites) ;
+   validez.
+2. Attendez que l'état passe au vert (le premier démarrage initialise la base
+   de NPM, comptez une à deux minutes).
+3. Ouvrez le portail via le lien **Ouvrir** (ou l'URL affichée dans la section
+   « Accéder au portail »).
+4. Première connexion : `admin@example.com` / `changeme` — NPM vous demande
+   immédiatement de changer l'e-mail et le mot de passe.
 
-## Configuration
+## Exposer vos services sur internet
 
-1. Installez l'intégration depuis le catalogue Gladys.
-2. Dans l'écran de configuration, renseignez :
-   - **URL de l'interface d'administration** : par exemple
-     `http://192.168.1.10:81` (sans `/` final, l'URL que vous ouvrez dans votre
-     navigateur) ;
-   - **E-mail administrateur** et **Mot de passe administrateur**.
-3. Enregistrez, puis cliquez sur **Tester la connexion** : la version de votre
-   instance NPM s'affiche si tout est bon.
+Gladys choisit les ports publiés sur la machine (ils sont affichés dans
+l'écran de configuration, sections « Exposer vos services ») :
+
+- le port **HTTP** correspond au port 80 interne de NPM ;
+- le port **HTTPS** correspond au port 443 interne.
+
+Sur votre box/routeur, redirigez les ports 80 et 443 vers ces deux ports de la
+machine Gladys pour que vos domaines et les challenges Let's Encrypt
+fonctionnent.
 
 ## Bon à savoir
 
-- La gestion des proxy hosts (création, activation, certificats…) reste dans
-  l'interface de Nginx Proxy Manager : utilisez le bouton **Portail NPM** pour
-  retrouver son adresse.
-- L'interface de Gladys ne peut pas ouvrir directement une page externe depuis
-  une intégration : le bouton affiche donc l'URL à ouvrir dans votre
-  navigateur.
+- Cette intégration ne crée aucun appareil dans Gladys : NPM se pilote depuis
+  son propre portail.
+- Arrêter l'intégration arrête aussi le proxy ; désinstaller l'intégration
+  supprime le conteneur (les volumes suivent la politique de données de
+  Gladys).

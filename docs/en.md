@@ -1,43 +1,51 @@
 # Nginx Proxy Manager integration
 
-This integration connects Gladys Assistant to your
-[Nginx Proxy Manager](https://nginxproxymanager.com/) (NPM) instance, the
-reverse proxy manager with a web UI.
-
-It is a deliberately **minimal** integration: it creates no device. It stores
-the access to your NPM instance, verifies that Gladys can reach it, and gives
-you a quick access to the admin portal.
+This integration **installs and runs
+[Nginx Proxy Manager](https://nginxproxymanager.com/)** (NPM) directly on the
+Gladys machine: nothing to install by hand, no docker-compose to write. Gladys
+creates the official `jc21/nginx-proxy-manager` container, supervises it,
+keeps its data and gives you direct access to its web portal.
 
 ## What the integration does
 
-- **Test the connection**: a button in the configuration screen checks the URL
-  and the credentials, then displays the version of your NPM instance and the
-  number of configured proxy hosts.
-- **NPM portal**: a button that displays the admin portal URL you configured,
-  so you can find it at a glance from Gladys.
-- The connection status (reachable or not) is permanently shown in the
-  integration configuration screen.
+- **Automatic install**: when the integration is installed, Gladys pulls the
+  official NPM image and starts the container (the docker-compose equivalent,
+  inside the Gladys sandbox).
+- **Supervision**: the container state is visible in Gladys; the configuration
+  screen shows whether the NPM API answers, and a **Check Nginx Proxy
+  Manager** button displays the running version.
+- **Portal access**: an **Open** link in Gladys leads to the NPM admin portal.
+  Management (proxy hosts, redirections, SSL certificates) happens in that
+  portal, as usual.
+- **Persistent data**: the NPM database (`/data`) and its certificates
+  (`/etc/letsencrypt`) are kept by Gladys across restarts and updates.
 
-## Requirements
+## Install
 
-- A Nginx Proxy Manager instance reachable **from the Gladys network** (the
-  admin interface, port `81` by default).
-- An NPM **administrator** account (the same email/password as the web UI).
+1. Install the integration from the Gladys catalog. The install screen shows
+   the container that will be created (image, published ports, limits);
+   confirm.
+2. Wait for the status to turn green (the first start initializes the NPM
+   database, allow one to two minutes).
+3. Open the portal through the **Open** link (or the URL shown in the "Access
+   the portal" section).
+4. First login: `admin@example.com` / `changeme` — NPM immediately asks you to
+   change the email and the password.
 
-## Configuration
+## Expose your services on the internet
 
-1. Install the integration from the Gladys catalog.
-2. In the configuration screen, fill in:
-   - **Admin interface URL**: for example `http://192.168.1.10:81` (no trailing
-     `/`, the URL you open in your browser);
-   - **Administrator email** and **Administrator password**.
-3. Save, then click **Test the connection**: the version of your NPM instance
-   is displayed when everything is fine.
+Gladys picks the ports published on the machine (they are shown in the
+configuration screen, "Expose your services" section):
+
+- the **HTTP** port maps to NPM's internal port 80;
+- the **HTTPS** port maps to the internal port 443.
+
+On your router, forward ports 80 and 443 to these two ports of the Gladys
+machine so your domains and the Let's Encrypt challenges work.
 
 ## Good to know
 
-- Managing the proxy hosts (creation, enabling, certificates…) stays in the
-  Nginx Proxy Manager interface: use the **NPM portal** button to find its
-  address.
-- The Gladys UI cannot directly open an external page from an integration:
-  the button therefore displays the URL to open in your browser.
+- This integration creates no device in Gladys: NPM is managed from its own
+  portal.
+- Stopping the integration also stops the proxy; uninstalling the integration
+  removes the container (volumes follow the Gladys data policy).

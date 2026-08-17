@@ -3,8 +3,8 @@
   "type": "device",
   "name": "Nginx Proxy Manager",
   "description": {
-    "en": "Connect your Nginx Proxy Manager instance to Gladys, test it and open its admin portal.",
-    "fr": "Connectez votre instance Nginx Proxy Manager à Gladys, testez-la et ouvrez son portail."
+    "en": "Install and run Nginx Proxy Manager from Gladys, with direct access to its admin portal.",
+    "fr": "Installez Nginx Proxy Manager depuis Gladys et accédez directement à son portail d'admin."
   },
   "version": "1.0.0",
   "docker_image": "ghcr.io/jeremiemercier/gladys-nginx-proxy-manager:1.0.0",
@@ -12,14 +12,45 @@
   "cover_image": "https://raw.githubusercontent.com/JeremieMercier/gladys-nginx-proxy-manager/main/cover.png",
   "categories": ["network", "services"],
   "transports": ["local"],
+  "containers": [
+    {
+      "name": "npm",
+      "docker_image": "jc21/nginx-proxy-manager:2",
+      "start": "auto",
+      "read_only": false,
+      "memory_mb": 512,
+      "cpu": 1,
+      "volumes": ["/data", "/etc/letsencrypt"],
+      "ports": [
+        {
+          "container_port": 81,
+          "name": "admin",
+          "label": { "en": "NPM admin portal", "fr": "Portail d'administration NPM" },
+          "browsable": true
+        },
+        {
+          "container_port": 80,
+          "name": "http",
+          "label": { "en": "HTTP traffic", "fr": "Trafic HTTP" },
+          "browsable": false
+        },
+        {
+          "container_port": 443,
+          "name": "https",
+          "label": { "en": "HTTPS traffic", "fr": "Trafic HTTPS" },
+          "browsable": false
+        }
+      ]
+    }
+  ],
   "config_schema": [
     {
       "key": "intro",
       "type": "section",
-      "label": { "en": "Connect to Nginx Proxy Manager", "fr": "Connexion à Nginx Proxy Manager" },
+      "label": { "en": "How it works", "fr": "Fonctionnement" },
       "description": {
-        "en": "Enter the URL of your Nginx Proxy Manager admin interface (the one you open in your browser, port 81 by default) and the credentials of an administrator account. Gladys must be able to reach this URL from its own network.",
-        "fr": "Renseignez l'URL de l'interface d'administration de Nginx Proxy Manager (celle que vous ouvrez dans votre navigateur, port 81 par défaut) et les identifiants d'un compte administrateur. Gladys doit pouvoir joindre cette URL depuis son propre réseau."
+        "en": "This integration installs and runs Nginx Proxy Manager on your Gladys machine: nothing to install by hand, the container is created, supervised and updated by Gladys. Manage your proxy hosts, redirections and SSL certificates from its own web portal.",
+        "fr": "Cette intégration installe et fait tourner Nginx Proxy Manager sur la machine de Gladys : rien à installer à la main, le conteneur est créé, supervisé et mis à jour par Gladys. Gérez vos proxy hosts, redirections et certificats SSL depuis son portail web."
       },
       "links": [
         {
@@ -32,39 +63,29 @@
       ]
     },
     {
-      "key": "npm_url",
-      "type": "string",
-      "label": { "en": "Admin interface URL", "fr": "URL de l'interface d'administration" },
+      "key": "access",
+      "type": "section",
+      "label": { "en": "Access the portal", "fr": "Accéder au portail" },
       "description": {
-        "en": "Example: http://192.168.1.10:81",
-        "fr": "Exemple : http://192.168.1.10:81"
-      },
-      "placeholder": { "en": "http://192.168.1.10:81", "fr": "http://192.168.1.10:81" },
-      "required": true
+        "en": "The admin portal is available at http://{{gladys_host}}:{{port:admin}} (also via the \"Open\" link on this screen). First login: admin@example.com / changeme — you will be asked to change it immediately.",
+        "fr": "Le portail d'administration est disponible sur http://{{gladys_host}}:{{port:admin}} (également via le lien « Ouvrir » de cet écran). Première connexion : admin@example.com / changeme — le changement vous sera demandé immédiatement."
+      }
     },
     {
-      "key": "email",
-      "type": "string",
-      "label": { "en": "Administrator email", "fr": "E-mail administrateur" },
-      "required": true
-    },
-    {
-      "key": "password",
-      "type": "secret",
-      "label": { "en": "Administrator password", "fr": "Mot de passe administrateur" },
-      "required": true
+      "key": "forwarding",
+      "type": "section",
+      "label": { "en": "Expose your services", "fr": "Exposer vos services" },
+      "description": {
+        "en": "Gladys assigned the ports {{port:http}} (HTTP) and {{port:https}} (HTTPS) to the proxy. To serve your domains from the internet, forward ports 80 and 443 of your router to these two ports on the Gladys machine.",
+        "fr": "Gladys a assigné les ports {{port:http}} (HTTP) et {{port:https}} (HTTPS) au proxy. Pour servir vos domaines depuis internet, redirigez les ports 80 et 443 de votre box vers ces deux ports de la machine Gladys."
+      }
     }
   ],
   "actions": [
     {
       "key": "test_connection",
-      "label": { "en": "Test the connection", "fr": "Tester la connexion" },
+      "label": { "en": "Check Nginx Proxy Manager", "fr": "Vérifier Nginx Proxy Manager" },
       "timeout_seconds": 30
-    },
-    {
-      "key": "open_portal",
-      "label": { "en": "NPM portal", "fr": "Portail NPM" },
-      "timeout_seconds": 10
     }
   ]
 }

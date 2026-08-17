@@ -1,17 +1,13 @@
 // -----------------------------------------------------------------------------
-// Driver for the Nginx Proxy Manager (NPM) REST API.
+// Health-check driver for the Nginx Proxy Manager (NPM) sub-container.
 //
-// This is where we talk to the outside world: the NPM admin API, the same one
-// its web UI uses (http://<host>:81/api by default).
+// The manifest declares NPM as a sub-container named `npm`: that name is also
+// its DNS alias on the private network of the integration, so the API is
+// always reachable at http://npm:81 from this container — no configuration.
 //
-// Authentication: POST /api/tokens with the admin email/password returns a JWT
-// (`{ token, expires }`). Every other call sends it as a Bearer token. The
-// client caches the token and transparently re-authenticates when it expires
-// or when the API answers 401.
-//
-// Endpoints used:
-//   - GET  /api/              -> { status, version }
-//   - GET  /api/reports/hosts -> { proxy, redirection, stream, dead }
+// Only the unauthenticated health endpoint is used:
+//   - GET /api/ -> { status: "OK", version: { major, minor, revision } }
+// Managing the proxy hosts themselves stays in the NPM web UI.
 //
 // Node 20+ provides `fetch` natively: no dependency needed.
 // -----------------------------------------------------------------------------
@@ -20,91 +16,54 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 
 const logger = createLogger({ name: 'npm-api' });
 
-const REQUEST_TIMEOUT_MS = 10_000;
-// Re-authenticate a bit before the announced expiry to avoid racing it.
-const TOKEN_EXPIRY_MARGIN_MS = 60_000;
+// Overridable for local runs/tests outside the Gladys network.
+export const NPM_BASE_URL = process.env.NPM_BASE_URL ?? 'http://npm:81';
 
-export class NpmApi {
-  /**
-   * @param {{ npm_url: string, email: string, password: string }} config
-   */
-  constructor({ npm_url, email, password }) {
-    this.baseUrl = String(npm_url ?? '').replace(/\/+$/, '');
-    this.email = email;
-    this.password = password;
-    this.token = null;
-    this.tokenExpiresAt = 0;
-  }
+const REQUEST_TIMEOUT_MS = 5_000;
 
-  /**
-   * Authenticate against /api/tokens and cache the JWT.
-   */
-  async login() {
-    logger.debug(`Authenticating on ${this.baseUrl}/api/tokens`);
-    const response = await fetch(`${this.baseUrl}/api/tokens`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ identity: this.email, secret: this.password }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      throw new Error(`NPM authentication failed (HTTP ${response.status})`);
-    }
-    const body = await response.json();
-    if (!body.token) {
-      throw new Error('NPM authentication failed (no token in response)');
-    }
-    this.token = body.token;
-    const expires = Date.parse(body.expires ?? '');
-    this.tokenExpiresAt = Number.isNaN(expires) ? Date.now() + 3_600_000 : expires;
+/**
+ * API health/version info of the NPM instance.
+ * @returns {Promise<{ status: string, version?: { major: number, minor: number, revision: number } }>}
+ */
+export async function getNpmHealth() {
+  const response = await fetch(`${NPM_BASE_URL}/api/`, {
+    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    throw new Error(`NPM API not reachable (HTTP ${response.status})`);
   }
+  return response.json();
+}
 
-  /**
-   * Authenticated request against the NPM API, with one automatic re-login on
-   * an expired/rejected token.
-   * @param {string} path e.g. '/api/reports/hosts'
-   * @param {{ method?: string }} [options]
-   * @param {boolean} [retryOnAuthFailure]
-   */
-  async request(path, { method = 'GET' } = {}, retryOnAuthFailure = true) {
-    if (!this.token || Date.now() >= this.tokenExpiresAt - TOKEN_EXPIRY_MARGIN_MS) {
-      await this.login();
+/**
+ * Wait until the NPM container answers on its API — it needs a little while
+ * to initialize its database on the first start.
+ * @param {{ timeoutMs?: number, intervalMs?: number }} [options]
+ * @returns {Promise<{ status: string, version?: object }>} the first healthy answer
+ */
+export async function waitForNpm({ timeoutMs = 120_000, intervalMs = 3_000 } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  let lastError;
+  for (;;) {
+    try {
+      return await getNpmHealth();
+    } catch (err) {
+      lastError = err;
+      if (Date.now() + intervalMs > deadline) {
+        break;
+      }
+      logger.debug(`NPM not ready yet (${err.message}), retrying...`);
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method,
-      headers: { Authorization: `Bearer ${this.token}` },
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (response.status === 401 && retryOnAuthFailure) {
-      logger.debug('Token rejected (401), re-authenticating once');
-      this.token = null;
-      return this.request(path, { method }, false);
-    }
-    if (!response.ok) {
-      throw new Error(`NPM API ${method} ${path} failed (HTTP ${response.status})`);
-    }
-    return response.json();
   }
+  throw new Error(`NPM did not come up within ${timeoutMs / 1000}s: ${lastError?.message}`);
+}
 
-  /**
-   * API health/version info (also proves the URL points at an NPM instance).
-   * @returns {Promise<{ status: string, version: { major: number, minor: number, revision: number } }>}
-   */
-  async getVersion() {
-    const response = await fetch(`${this.baseUrl}/api/`, {
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-    });
-    if (!response.ok) {
-      throw new Error(`NPM API not reachable (HTTP ${response.status})`);
-    }
-    return response.json();
-  }
-
-  /**
-   * Host counts, as shown on the NPM dashboard.
-   * @returns {Promise<{ proxy: number, redirection: number, stream: number, dead: number }>}
-   */
-  async getHostCounts() {
-    return this.request('/api/reports/hosts');
-  }
+/**
+ * "2.12.3"-style version string from a health payload, or 'unknown'.
+ * @param {{ version?: { major: number, minor: number, revision: number } }} health
+ */
+export function formatVersion(health) {
+  const v = health?.version;
+  return v ? `${v.major}.${v.minor}.${v.revision}` : 'unknown';
 }

@@ -1,49 +1,45 @@
 # Gladys × Nginx Proxy Manager
 
 External integration for [Gladys Assistant](https://gladysassistant.com) that
-connects your [Nginx Proxy Manager](https://nginxproxymanager.com/) (NPM)
-instance, built with the JavaScript SDK
+**installs and runs [Nginx Proxy Manager](https://nginxproxymanager.com/)**
+(NPM) on the Gladys machine. Built with the JavaScript SDK
 [`@gladysassistant/integration-sdk`](https://github.com/GladysAssistant/integration-sdk-js)
 from the official
 [integration template](https://github.com/GladysAssistant/integration-template-js).
 
-A deliberately **minimal** integration: it creates no device. It stores the
-NPM connection settings, verifies them against the NPM admin REST API (the
-same one its web UI uses, `http://<host>:81/api` by default), and offers two
-buttons in the Gladys configuration screen:
+## How it works
 
-- **Test the connection** — checks the URL/credentials, reports the NPM
-  version and the number of proxy hosts;
-- **NPM portal** — displays the configured admin portal URL.
+The manifest declares the official `jc21/nginx-proxy-manager` image as a
+Gladys **sub-container** — the docker-compose equivalent, translated to the
+Gladys sandbox:
 
-Managing the proxy hosts themselves (creation, enabling, certificates…) stays
-in the NPM web interface.
+| docker-compose                     | Gladys manifest (`containers` field)     |
+| ---------------------------------- | ---------------------------------------- |
+| `image: jc21/nginx-proxy-manager`  | `docker_image`                           |
+| `ports: 80, 81, 443`               | `ports` (host ports assigned by Gladys)  |
+| `volumes: ./data`, `./letsencrypt` | `volumes: ["/data", "/etc/letsencrypt"]` |
+| `restart: unless-stopped`          | `start: "auto"` + supervisor             |
+
+Gladys creates and supervises the container, persists its volumes, and shows
+an **Open** link for the admin portal (browsable port 81). The integration
+code is thin on purpose: it waits for the NPM API (`http://npm:81/api/` over
+the integration's private network) and reports the health in the
+Configuration screen, plus a **Check Nginx Proxy Manager** action button. No
+device is created — proxy hosts are managed in the NPM web UI.
 
 ## Project structure
 
 ```
 .
-├─ index.js                          # SDK bootstrap + action handlers
+├─ index.js                          # SDK bootstrap: container watch + status
 ├─ src/
-│  ├─ npmApi.js                      # NPM REST API client (auth, version, counts)
-│  └─ config.js                      # config defaults + normalization
+│  └─ npmApi.js                      # NPM health-check driver (GET /api/)
 ├─ docs/
 │  ├─ en.md                          # user documentation (linked from Gladys)
 │  └─ fr.md
-├─ gladys-assistant-integration.json # manifest (name, config schema, image…)
+├─ gladys-assistant-integration.json # manifest (sub-container, sections, image…)
 └─ Dockerfile                        # Node 24 Alpine, read-only rootfs ready
 ```
-
-## Configuration (in Gladys)
-
-| Field                  | Description                    |
-| ---------------------- | ------------------------------ |
-| Admin interface URL    | e.g. `http://192.168.1.10:81`  |
-| Administrator email    | the NPM admin account email    |
-| Administrator password | the NPM admin account password |
-
-See [`docs/fr.md`](./docs/fr.md) / [`docs/en.md`](./docs/en.md) for the full
-user guide.
 
 ## Run it locally
 
@@ -52,13 +48,14 @@ npm install
 GLADYS_HOST_API_URL="http://localhost:1443" \
 GLADYS_INTEGRATION_TOKEN="<token>" \
 GLADYS_INTEGRATION_SELECTOR="nginx-proxy-manager" \
+NPM_BASE_URL="http://localhost:81" \
 LOG_LEVEL=debug \
 npm start
 ```
 
 The three `GLADYS_*` variables are injected by the Gladys supervisor when the
-integration runs inside its sandboxed container. The SDK reads them
-automatically.
+integration runs inside its sandboxed container. `NPM_BASE_URL` overrides the
+in-sandbox DNS alias (`http://npm:81`) for local runs.
 
 ## Quality checks
 
@@ -78,8 +75,9 @@ The same three checks run automatically on every push and pull request (see
 npx github:GladysAssistant/integration-store .
 ```
 
-It runs the exact same checks as the store indexer (manifest, Docker image,
-cover image, code rules) and reports every problem at once.
+It runs the exact same checks as the store indexer (manifest, Docker images —
+main and sub-containers —, cover image, code rules) and reports every problem
+at once.
 
 ## Release
 
