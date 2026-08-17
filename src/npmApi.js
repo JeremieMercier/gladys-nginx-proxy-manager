@@ -17,16 +17,17 @@ import { createLogger } from '@gladysassistant/integration-sdk';
 const logger = createLogger({ name: 'npm-api' });
 
 // Overridable for local runs/tests outside the Gladys network.
-export const NPM_BASE_URL = process.env.NPM_BASE_URL ?? 'http://npm:81';
+export const NPM_INTERNAL_URL = process.env.NPM_BASE_URL ?? 'http://npm:81';
 
 const REQUEST_TIMEOUT_MS = 5_000;
 
 /**
  * API health/version info of the NPM instance.
+ * @param {string} [baseUrl]
  * @returns {Promise<{ status: string, version?: { major: number, minor: number, revision: number } }>}
  */
-export async function getNpmHealth() {
-  const response = await fetch(`${NPM_BASE_URL}/api/`, {
+export async function getNpmHealth(baseUrl = NPM_INTERNAL_URL) {
+  const response = await fetch(`${baseUrl}/api/`, {
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) {
@@ -50,39 +51,47 @@ export function describeFetchError(err) {
 }
 
 /**
- * Wait until the NPM container answers on its API. The first start can be
- * long on modest hardware: NPM runs its database migrations and generates a
- * default certificate before listening.
- * @param {{ timeoutMs?: number, intervalMs?: number }} [options]
- * @returns {Promise<{ status: string, version?: object }>} the first healthy answer
+ * Wait until the NPM container answers on its API, trying every candidate
+ * base URL on each round (the private DNS alias first, then the host-published
+ * port as a fallback). The first start can be long on modest hardware: NPM
+ * runs its database migrations and generates a default certificate before
+ * listening.
+ * @param {{ candidates?: string[], timeoutMs?: number, intervalMs?: number }} [options]
+ * @returns {Promise<{ health: object, baseUrl: string }>} the first healthy answer and the URL that gave it
  */
-export async function waitForNpm({ timeoutMs = 300_000, intervalMs = 5_000 } = {}) {
+export async function waitForNpm({
+  candidates = [NPM_INTERNAL_URL],
+  timeoutMs = 300_000,
+  intervalMs = 5_000,
+} = {}) {
   const deadline = Date.now() + timeoutMs;
-  let lastError;
-  let attempt = 0;
+  const failures = new Map();
+  let round = 0;
   for (;;) {
-    try {
-      return await getNpmHealth();
-    } catch (err) {
-      lastError = err;
-      if (Date.now() + intervalMs > deadline) {
-        break;
+    for (const baseUrl of candidates) {
+      try {
+        const health = await getNpmHealth(baseUrl);
+        return { health, baseUrl };
+      } catch (err) {
+        failures.set(baseUrl, describeFetchError(err));
       }
-      attempt += 1;
-      // One info line every ~30s so `docker logs` shows progress and the
-      // underlying network error, without flooding.
-      const message = `NPM not ready yet (${describeFetchError(err)}), retrying...`;
-      if (attempt % 6 === 1) {
-        logger.info(message);
-      } else {
-        logger.debug(message);
-      }
-      await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
+    if (Date.now() + intervalMs > deadline) {
+      break;
+    }
+    round += 1;
+    // One info line every ~30s so `docker logs` shows progress and the
+    // underlying network error per URL, without flooding.
+    const summary = [...failures].map(([url, reason]) => `${url}: ${reason}`).join(' | ');
+    if (round % 6 === 1) {
+      logger.info(`NPM not ready yet (${summary}), retrying...`);
+    } else {
+      logger.debug(`NPM not ready yet (${summary}), retrying...`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }
-  throw new Error(
-    `NPM did not come up within ${timeoutMs / 1000}s: ${describeFetchError(lastError)}`,
-  );
+  const summary = [...failures].map(([url, reason]) => `${url}: ${reason}`).join(' | ');
+  throw new Error(`NPM did not come up within ${timeoutMs / 1000}s: ${summary}`);
 }
 
 /**

@@ -20,17 +20,22 @@
 // -----------------------------------------------------------------------------
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
-import { getNpmHealth, waitForNpm, formatVersion } from './src/npmApi.js';
+import { getNpmHealth, waitForNpm, formatVersion, NPM_INTERNAL_URL } from './src/npmApi.js';
 
 const gladys = new GladysIntegration();
 
 const CONTAINER_NAME = 'npm';
+const ADMIN_CONTAINER_PORT = 81;
 
 // When NPM is unreachable, retry the whole initialization at this pace until
 // it comes up (image still pulling, slow first boot, container restarting...).
 const RETRY_DELAY_MS = 60_000;
 let initializing = false;
 let retryTimer = null;
+
+// The base URL that last answered: the private DNS alias (http://npm:81)
+// or, as a fallback, the admin port published on the host.
+let npmBaseUrl = NPM_INTERNAL_URL;
 
 // --- Discovery: Gladys asks for the list of devices --------------------------
 // This integration manages no device: answer the scan with an empty list so
@@ -42,8 +47,8 @@ gladys.onScanRequest(async () => {
 
 // --- Manifest action: "Check Nginx Proxy Manager" button ---------------------
 gladys.onAction('test_connection', async () => {
-  logger.info('Action test_connection -> live request to the NPM API');
-  const health = await getNpmHealth();
+  logger.info(`Action test_connection -> live request to the NPM API (${npmBaseUrl})`);
+  const health = await getNpmHealth(npmBaseUrl);
   const version = formatVersion(health);
   return {
     en: `Nginx Proxy Manager v${version} is up and running.`,
@@ -70,9 +75,11 @@ async function initialize() {
   initializing = true;
   clearTimeout(retryTimer);
   try {
-    await ensureContainerRunning();
-    const health = await waitForNpm();
-    logger.info(`Nginx Proxy Manager v${formatVersion(health)} is ready`);
+    const container = await ensureContainerRunning();
+    const candidates = buildCandidateUrls(container);
+    const { health, baseUrl } = await waitForNpm({ candidates });
+    npmBaseUrl = baseUrl;
+    logger.info(`Nginx Proxy Manager v${formatVersion(health)} is ready at ${baseUrl}`);
     await gladys.setConnectionStatus(true);
   } catch (err) {
     logger.error('NPM initialization failed', err);
@@ -105,6 +112,29 @@ async function ensureContainerRunning() {
     logger.info(`Sub-container "${CONTAINER_NAME}" is ${npm.status}: starting it`);
     await gladys.startContainer(CONTAINER_NAME);
   }
+  return npm;
+}
+
+// Ways to reach the NPM API, most direct first: the private DNS alias of the
+// sub-container, then — in case that network path fails — its admin port as
+// published on the Docker host, whose address is the host of the Gladys API
+// URL the supervisor gave us.
+function buildCandidateUrls(container) {
+  const candidates = [NPM_INTERNAL_URL];
+  const adminPort = (container.ports ?? []).find(
+    (port) => port.container_port === ADMIN_CONTAINER_PORT,
+  );
+  const gladysApiUrl = process.env.GLADYS_HOST_API_URL;
+  if (adminPort?.host_port && gladysApiUrl) {
+    try {
+      const { hostname } = new URL(gladysApiUrl);
+      candidates.push(`http://${hostname}:${adminPort.host_port}`);
+    } catch {
+      logger.warn(`Cannot parse GLADYS_HOST_API_URL (${gladysApiUrl}) for the fallback URL`);
+    }
+  }
+  logger.info(`NPM candidate URLs: ${candidates.join(', ')}`);
+  return candidates;
 }
 
 // --- Graceful shutdown -------------------------------------------------------
