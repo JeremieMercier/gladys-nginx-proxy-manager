@@ -1,5 +1,13 @@
 # Intégration Nginx Proxy Manager
 
+> ⚠️ **Pas encore fonctionnelle.** Le bac à sable Gladys retire actuellement
+> toutes les capabilities Linux aux sous-conteneurs, et l'image officielle de
+> Nginx Proxy Manager ne peut pas démarrer sans certaines d'entre elles
+> (création de son utilisateur, lancement de ses services, écoute sur les
+> ports 80/81/443). Le conteneur apparaît « en fonctionnement » mais rien
+> n'écoute sur son port 81. Cela nécessite une évolution du contrat des
+> sous-conteneurs côté Gladys (équivalent `cap_add`).
+
 Cette intégration **installe et fait tourner
 [Nginx Proxy Manager](https://nginxproxymanager.com/)** (NPM) directement sur
 la machine de Gladys : rien à installer à la main, pas de docker-compose à

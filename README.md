@@ -7,6 +7,18 @@ External integration for [Gladys Assistant](https://gladysassistant.com) that
 from the official
 [integration template](https://github.com/GladysAssistant/integration-template-js).
 
+> [!WARNING]
+> **Not functional yet.** The Gladys sub-container sandbox currently drops all
+> Linux capabilities (`CapDrop=ALL` + `no-new-privileges`), and the official
+> `jc21/nginx-proxy-manager` image cannot boot without a few of them: its init
+> creates the `npm` user (`CAP_CHOWN`/`CAP_FOWNER` on `/etc/shadow`), starts
+> its services via setuid (`CAP_SETUID`/`CAP_SETGID`) and binds ports
+> 80/81/443 (`CAP_NET_BIND_SERVICE`). Symptom: the container shows "running"
+> but `s6-rc: unable to start service prepare` in its logs and nothing listens
+> on port 81 (`ECONNREFUSED`). This needs a `cap_add`-style field in the
+> Gladys sub-container contract (like the existing `read_only` opt-out) before
+> the integration can work.
+
 ## How it works
 
 The manifest declares the official `jc21/nginx-proxy-manager` image as a

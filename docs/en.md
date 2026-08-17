@@ -1,5 +1,12 @@
 # Nginx Proxy Manager integration
 
+> ⚠️ **Not functional yet.** The Gladys sandbox currently drops all Linux
+> capabilities from sub-containers, and the official Nginx Proxy Manager
+> image cannot boot without some of them (creating its user, starting its
+> services, listening on ports 80/81/443). The container shows as "running"
+> but nothing listens on its port 81. This needs an evolution of the Gladys
+> sub-container contract (a `cap_add` equivalent).
+
 This integration **installs and runs
 [Nginx Proxy Manager](https://nginxproxymanager.com/)** (NPM) directly on the
 Gladys machine: nothing to install by hand, no docker-compose to write. Gladys
