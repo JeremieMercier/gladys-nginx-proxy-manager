@@ -36,14 +36,30 @@ export async function getNpmHealth() {
 }
 
 /**
- * Wait until the NPM container answers on its API — it needs a little while
- * to initialize its database on the first start.
+ * "fetch failed" hides the real network error: surface the undici cause
+ * (ENOTFOUND = the `npm` DNS alias does not resolve, ECONNREFUSED = the
+ * container is up but nothing listens on 81 yet, timeouts...).
+ * @param {Error} err
+ */
+export function describeFetchError(err) {
+  const cause = err?.cause;
+  if (cause?.code || cause?.message) {
+    return `${err.message} (${cause.code ?? cause.message})`;
+  }
+  return err?.message ?? String(err);
+}
+
+/**
+ * Wait until the NPM container answers on its API. The first start can be
+ * long on modest hardware: NPM runs its database migrations and generates a
+ * default certificate before listening.
  * @param {{ timeoutMs?: number, intervalMs?: number }} [options]
  * @returns {Promise<{ status: string, version?: object }>} the first healthy answer
  */
-export async function waitForNpm({ timeoutMs = 120_000, intervalMs = 3_000 } = {}) {
+export async function waitForNpm({ timeoutMs = 300_000, intervalMs = 5_000 } = {}) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
+  let attempt = 0;
   for (;;) {
     try {
       return await getNpmHealth();
@@ -52,11 +68,21 @@ export async function waitForNpm({ timeoutMs = 120_000, intervalMs = 3_000 } = {
       if (Date.now() + intervalMs > deadline) {
         break;
       }
-      logger.debug(`NPM not ready yet (${err.message}), retrying...`);
+      attempt += 1;
+      // One info line every ~30s so `docker logs` shows progress and the
+      // underlying network error, without flooding.
+      const message = `NPM not ready yet (${describeFetchError(err)}), retrying...`;
+      if (attempt % 6 === 1) {
+        logger.info(message);
+      } else {
+        logger.debug(message);
+      }
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
     }
   }
-  throw new Error(`NPM did not come up within ${timeoutMs / 1000}s: ${lastError?.message}`);
+  throw new Error(
+    `NPM did not come up within ${timeoutMs / 1000}s: ${describeFetchError(lastError)}`,
+  );
 }
 
 /**

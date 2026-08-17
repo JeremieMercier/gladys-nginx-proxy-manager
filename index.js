@@ -26,6 +26,12 @@ const gladys = new GladysIntegration();
 
 const CONTAINER_NAME = 'npm';
 
+// When NPM is unreachable, retry the whole initialization at this pace until
+// it comes up (image still pulling, slow first boot, container restarting...).
+const RETRY_DELAY_MS = 60_000;
+let initializing = false;
+let retryTimer = null;
+
 // --- Discovery: Gladys asks for the list of devices --------------------------
 // This integration manages no device: answer the scan with an empty list so
 // the UI does not wait for anything.
@@ -58,6 +64,11 @@ gladys.on('connected', async () => {
 // the container state machine: this integration can be RUNNING while NPM is
 // still initializing its database.
 async function initialize() {
+  if (initializing) {
+    return;
+  }
+  initializing = true;
+  clearTimeout(retryTimer);
   try {
     await ensureContainerRunning();
     const health = await waitForNpm();
@@ -67,10 +78,14 @@ async function initialize() {
     logger.error('NPM initialization failed', err);
     await gladys
       .setConnectionStatus(false, {
-        en: 'Nginx Proxy Manager is not responding, check the container logs.',
-        fr: 'Nginx Proxy Manager ne répond pas, consultez les logs du conteneur.',
+        en: 'Nginx Proxy Manager is not responding, check the npm container logs.',
+        fr: 'Nginx Proxy Manager ne répond pas, consultez les logs du conteneur npm.',
       })
       .catch(() => {});
+    logger.info(`Retrying the NPM initialization in ${RETRY_DELAY_MS / 1000}s`);
+    retryTimer = setTimeout(() => initialize(), RETRY_DELAY_MS);
+  } finally {
+    initializing = false;
   }
 }
 
@@ -83,6 +98,9 @@ async function ensureContainerRunning() {
   if (!npm) {
     throw new Error(`Sub-container "${CONTAINER_NAME}" not found`);
   }
+  // Full inventory in the logs: status, desired state and assigned host
+  // ports are the first things to look at when NPM is unreachable.
+  logger.info(`Sub-container "${CONTAINER_NAME}": ${JSON.stringify(npm)}`);
   if (npm.status !== 'running') {
     logger.info(`Sub-container "${CONTAINER_NAME}" is ${npm.status}: starting it`);
     await gladys.startContainer(CONTAINER_NAME);
