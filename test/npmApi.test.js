@@ -59,10 +59,10 @@ test('request authenticates first, then sends the Bearer token', async () => {
   responders.push(() =>
     jsonResponse({ token: 'jwt-1', expires: new Date(Date.now() + 3_600_000).toISOString() }),
   );
-  responders.push(() => jsonResponse([{ id: 1 }]));
-  const hosts = await api.getProxyHosts();
-  assert.deepEqual(hosts, [{ id: 1 }]);
-  assert.equal(requests[1].url, 'http://npm:81/api/nginx/proxy-hosts');
+  responders.push(() => jsonResponse({ proxy: 3, redirection: 0, stream: 0, dead: 1 }));
+  const counts = await api.getHostCounts();
+  assert.equal(counts.proxy, 3);
+  assert.equal(requests[1].url, 'http://npm:81/api/reports/hosts');
   assert.equal(requests[1].options.headers.Authorization, 'Bearer jwt-1');
 });
 
@@ -81,17 +81,14 @@ test('request re-authenticates once on a 401', async () => {
   assert.equal(requests[2].options.headers.Authorization, 'Bearer jwt-2');
 });
 
-test('setProxyHostEnabled hits the enable/disable endpoints', async () => {
+test('getVersion hits the unauthenticated API root', async () => {
   const api = makeApi();
-  api.token = 'jwt-1';
-  api.tokenExpiresAt = Date.now() + 3_600_000;
-  responders.push(() => jsonResponse(true));
-  responders.push(() => jsonResponse(true));
-  await api.setProxyHostEnabled(3, true);
-  await api.setProxyHostEnabled(3, false);
-  assert.equal(requests[0].url, 'http://npm:81/api/nginx/proxy-hosts/3/enable');
-  assert.equal(requests[1].url, 'http://npm:81/api/nginx/proxy-hosts/3/disable');
-  assert.equal(requests[0].options.method, 'POST');
+  responders.push(() =>
+    jsonResponse({ status: 'OK', version: { major: 2, minor: 12, revision: 3 } }),
+  );
+  const info = await api.getVersion();
+  assert.equal(requests[0].url, 'http://npm:81/api/');
+  assert.equal(info.version.major, 2);
 });
 
 test('a failed request throws with the HTTP status', async () => {
@@ -99,7 +96,7 @@ test('a failed request throws with the HTTP status', async () => {
   api.token = 'jwt-1';
   api.tokenExpiresAt = Date.now() + 3_600_000;
   responders.push(() => jsonResponse({}, 500));
-  await assert.rejects(() => api.getProxyHosts(), /HTTP 500/);
+  await assert.rejects(() => api.getHostCounts(), /HTTP 500/);
 });
 
 test('a failed login throws and does not retry', async () => {

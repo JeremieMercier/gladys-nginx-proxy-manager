@@ -16,7 +16,6 @@ export const DEFAULT_CONFIG = {
   npm_url: '', // e.g. http://192.168.1.10:81 — no sensible default, user-provided
   email: '',
   password: '',
-  poll_frequency: 60, // seconds, how often hosts and stats are refreshed
 };
 
 /**
@@ -33,8 +32,6 @@ export function normalizeConfig(raw = {}) {
       .replace(/\/+$/, ''),
     email: String(raw.email ?? DEFAULT_CONFIG.email).trim(),
     password: String(raw.password ?? DEFAULT_CONFIG.password),
-    // Force the type: config may arrive as a string from a form.
-    poll_frequency: Number(raw.poll_frequency ?? DEFAULT_CONFIG.poll_frequency),
   };
 }
 

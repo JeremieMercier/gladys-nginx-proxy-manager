@@ -7,29 +7,26 @@ instance, built with the JavaScript SDK
 from the official
 [integration template](https://github.com/GladysAssistant/integration-template-js).
 
-## Features
+A deliberately **minimal** integration: it creates no device. It stores the
+NPM connection settings, verifies them against the NPM admin REST API (the
+same one its web UI uses, `http://<host>:81/api` by default), and offers two
+buttons in the Gladys configuration screen:
 
-| Device                         | What it exposes                                                                                          |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| One device per **proxy host**  | An Enabled/Disabled binary switch (enable or cut the host from Gladys, scenes included)                  |
-| **Nginx Proxy Manager** server | Read-only counters: proxy hosts, redirections, streams, 404 hosts, SSL certificates, days to next expiry |
+- **Test the connection** — checks the URL/credentials, reports the NPM
+  version and the number of proxy hosts;
+- **NPM portal** — displays the configured admin portal URL.
 
-The integration talks to the NPM admin REST API (the same one its web UI uses,
-`http://<host>:81/api` by default) with an administrator account, and
-transparently renews its authentication token.
+Managing the proxy hosts themselves (creation, enabling, certificates…) stays
+in the NPM web interface.
 
 ## Project structure
 
 ```
 .
-├─ index.js                          # SDK bootstrap + event wiring
+├─ index.js                          # SDK bootstrap + action handlers
 ├─ src/
-│  ├─ npmApi.js                      # NPM REST API client (auth, hosts, certs)
-│  ├─ config.js                      # config defaults + normalization
-│  └─ devices/
-│     ├─ index.js                    # discovery + external_id routing
-│     ├─ server.js                   # monitoring device (counters, certificates)
-│     └─ proxyHost.js                # one switch device per proxy host
+│  ├─ npmApi.js                      # NPM REST API client (auth, version, counts)
+│  └─ config.js                      # config defaults + normalization
 ├─ docs/
 │  ├─ en.md                          # user documentation (linked from Gladys)
 │  └─ fr.md
@@ -39,15 +36,11 @@ transparently renews its authentication token.
 
 ## Configuration (in Gladys)
 
-| Field                  | Description                               |
-| ---------------------- | ----------------------------------------- |
-| Admin interface URL    | e.g. `http://192.168.1.10:81`             |
-| Administrator email    | the NPM admin account email               |
-| Administrator password | the NPM admin account password            |
-| Refresh interval       | polling frequency in seconds (default 60) |
-
-A **Test the connection** button in the configuration screen checks the URL and
-the credentials and reports the NPM version.
+| Field                  | Description                    |
+| ---------------------- | ------------------------------ |
+| Admin interface URL    | e.g. `http://192.168.1.10:81`  |
+| Administrator email    | the NPM admin account email    |
+| Administrator password | the NPM admin account password |
 
 See [`docs/fr.md`](./docs/fr.md) / [`docs/en.md`](./docs/en.md) for the full
 user guide.

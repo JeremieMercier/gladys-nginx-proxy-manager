@@ -14,7 +14,7 @@ const manifest = JSON.parse(
 );
 
 // Actions registered in index.js (gladys.onAction calls).
-const REGISTERED_ACTIONS = ['test_connection'];
+const REGISTERED_ACTIONS = ['test_connection', 'open_portal'];
 
 test('every manifest action has a registered handler', () => {
   const handled = new Set(REGISTERED_ACTIONS);

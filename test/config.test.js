@@ -5,7 +5,7 @@ import { normalizeConfig, isConfigComplete, DEFAULT_CONFIG } from '../src/config
 test('normalizeConfig applies the defaults on an empty config', () => {
   const config = normalizeConfig();
   assert.equal(config.npm_url, DEFAULT_CONFIG.npm_url);
-  assert.equal(config.poll_frequency, DEFAULT_CONFIG.poll_frequency);
+  assert.equal(config.email, DEFAULT_CONFIG.email);
 });
 
 test('normalizeConfig strips trailing slashes from the URL', () => {
@@ -20,11 +20,6 @@ test('normalizeConfig trims the URL and email', () => {
   });
   assert.equal(config.npm_url, 'http://npm.local:81');
   assert.equal(config.email, 'admin@example.com');
-});
-
-test('normalizeConfig forces poll_frequency to a number', () => {
-  const config = normalizeConfig({ poll_frequency: '120' });
-  assert.equal(config.poll_frequency, 120);
 });
 
 test('isConfigComplete requires URL, email and password', () => {

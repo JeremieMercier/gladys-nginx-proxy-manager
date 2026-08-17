@@ -10,13 +10,8 @@
 // or when the API answers 401.
 //
 // Endpoints used:
-//   - GET  /api/                                  -> { status, version }
-//   - GET  /api/nginx/proxy-hosts                 -> proxy host list
-//   - GET  /api/nginx/proxy-hosts/{id}            -> one proxy host
-//   - POST /api/nginx/proxy-hosts/{id}/enable     -> enable a proxy host
-//   - POST /api/nginx/proxy-hosts/{id}/disable    -> disable a proxy host
-//   - GET  /api/reports/hosts                     -> { proxy, redirection, stream, dead }
-//   - GET  /api/nginx/certificates               -> certificate list
+//   - GET  /api/              -> { status, version }
+//   - GET  /api/reports/hosts -> { proxy, redirection, stream, dead }
 //
 // Node 20+ provides `fetch` natively: no dependency needed.
 // -----------------------------------------------------------------------------
@@ -67,7 +62,7 @@ export class NpmApi {
   /**
    * Authenticated request against the NPM API, with one automatic re-login on
    * an expired/rejected token.
-   * @param {string} path e.g. '/api/nginx/proxy-hosts'
+   * @param {string} path e.g. '/api/reports/hosts'
    * @param {{ method?: string }} [options]
    * @param {boolean} [retryOnAuthFailure]
    */
@@ -106,45 +101,10 @@ export class NpmApi {
   }
 
   /**
-   * All the proxy hosts configured on the instance.
-   * @returns {Promise<Array<object>>}
-   */
-  async getProxyHosts() {
-    return this.request('/api/nginx/proxy-hosts');
-  }
-
-  /**
-   * One proxy host by id.
-   * @param {number} id
-   */
-  async getProxyHost(id) {
-    return this.request(`/api/nginx/proxy-hosts/${id}`);
-  }
-
-  /**
-   * Enable or disable a proxy host.
-   * @param {number} id
-   * @param {boolean} enabled
-   */
-  async setProxyHostEnabled(id, enabled) {
-    return this.request(`/api/nginx/proxy-hosts/${id}/${enabled ? 'enable' : 'disable'}`, {
-      method: 'POST',
-    });
-  }
-
-  /**
    * Host counts, as shown on the NPM dashboard.
    * @returns {Promise<{ proxy: number, redirection: number, stream: number, dead: number }>}
    */
   async getHostCounts() {
     return this.request('/api/reports/hosts');
-  }
-
-  /**
-   * All the SSL certificates managed by the instance.
-   * @returns {Promise<Array<object>>}
-   */
-  async getCertificates() {
-    return this.request('/api/nginx/certificates');
   }
 }
