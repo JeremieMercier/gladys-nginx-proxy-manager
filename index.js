@@ -128,9 +128,13 @@ async function ensureContainerRunning() {
   if (!npm) {
     throw new Error(`Sub-container "${CONTAINER_NAME}" not found`);
   }
-  // Full inventory in the logs: status, desired state and assigned host
-  // ports are the first things to look at when NPM is unreachable.
-  logger.info(`Sub-container "${CONTAINER_NAME}": ${JSON.stringify(npm)}`);
+  // One readable line day-to-day; the full inventory (ports, desired state)
+  // stays available at LOG_LEVEL=debug for when NPM is unreachable.
+  const adminPort = (npm.ports ?? []).find((port) => port.container_port === ADMIN_CONTAINER_PORT);
+  logger.info(
+    `Sub-container "${CONTAINER_NAME}": ${npm.status}, admin portal on host port ${adminPort?.host_port ?? '?'}`,
+  );
+  logger.debug(`Sub-container "${CONTAINER_NAME}" inventory: ${JSON.stringify(npm)}`);
   if (npm.status !== 'running') {
     logger.info(`Sub-container "${CONTAINER_NAME}" is ${npm.status}: starting it`);
     await gladys.startContainer(CONTAINER_NAME);

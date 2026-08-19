@@ -55,6 +55,7 @@ On your router:
   If you open it, enable **Force SSL** on each of your proxy hosts in NPM:
   anything arriving over HTTP is immediately redirected to HTTPS, nothing is
   served in clear.
+
 - If you prefer **not to open port 80 at all**: in NPM, request your
   certificates with a **DNS challenge** ("Use a DNS Challenge" when
   requesting the certificate) — Let's Encrypt then verifies your domain

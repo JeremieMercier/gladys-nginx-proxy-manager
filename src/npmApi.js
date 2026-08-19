@@ -80,10 +80,11 @@ export async function waitForNpm({
       break;
     }
     round += 1;
-    // One info line every ~30s so `docker logs` shows progress and the
-    // underlying network error per URL, without flooding.
+    // A normal first boot takes ~25s (DB migrations, nginx startup): stay
+    // quiet at info level for the first ~30s, then one info line every ~30s
+    // with the underlying network error per URL, without flooding.
     const summary = [...failures].map(([url, reason]) => `${url}: ${reason}`).join(' | ');
-    if (round % 6 === 1) {
+    if (round % 6 === 0) {
       logger.info(`NPM not ready yet (${summary}), retrying...`);
     } else {
       logger.debug(`NPM not ready yet (${summary}), retrying...`);
