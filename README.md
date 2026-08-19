@@ -22,22 +22,30 @@ docker-compose equivalent, translated to the Gladys sandbox:
 ### Why an adapted image ([`npm-image/`](./npm-image))
 
 The Gladys sandbox runs sub-containers with **all Linux capabilities dropped**
-(`CapDrop=ALL` + `no-new-privileges`). The stock `jc21/nginx-proxy-manager`
-image cannot boot there: its init creates the `npm` user at runtime (the
-`useradd` rewrite of `/etc/shadow` needs `CAP_CHOWN`), chowns `/data` and the
-certbot tree, and launches nginx/backend through `s6-setuidgid`, whose
-`setgroups()` call needs `CAP_SETGID` even to stay root. Symptom with the
-stock image: the container shows "running" but logs
-`s6-rc: unable to start service prepare` and nothing listens on port 81.
+(`CapDrop=ALL` + `no-new-privileges`), and mounts the declared volumes from
+host folders owned by **uid/gid 1000** (the integration user), mode 755. The
+stock `jc21/nginx-proxy-manager` image cannot boot there, twice over:
 
-With NPM's default `PUID=0`, that `npm` user is just an alias of root — so the
-adapted image ([`npm-image/Dockerfile`](./npm-image/Dockerfile)) bakes the
-user in at **build time** and replaces the three offending scripts with
-capability-free equivalents (everything runs as root inside a container that
-has _zero_ capabilities, which is tighter than the stock setup). Ports 80/443
-need no capability either: Docker ≥ 20.10 sets
+- its init creates the `npm` user at runtime (the `useradd` rewrite of
+  `/etc/shadow` needs `CAP_CHOWN`), chowns `/data` and the certbot tree, and
+  launches nginx/backend through `s6-setuidgid`, whose `setgroups()` call
+  needs `CAP_SETGID` even to stay root — symptom: the container shows
+  "running" but logs `s6-rc: unable to start service prepare` and nothing
+  listens on port 81. Setting `PUID`/`PGID` does not help: the `useradd`
+  crashes before the value even matters (verified);
+- even past that, root without `CAP_DAC_OVERRIDE` is subject to plain file
+  permissions and cannot write into the uid-1000 volumes — symptom:
+  `mkdir: cannot create directory '/data/nginx': Permission denied`.
+
+So the adapted image ([`npm-image/Dockerfile`](./npm-image/Dockerfile)) runs
+**everything as uid 1000**, matching the volume owner: the `npm` user is
+baked in at build time (uid/gid 1000), every path NPM writes at runtime is
+chowned at build time, the offending init scripts are replaced with
+capability-free equivalents, and `USER 1000` means there is not even nominal
+root inside the container — tighter than the stock setup. Ports 80/443 need
+no capability either: Docker ≥ 20.10 sets
 `net.ipv4.ip_unprivileged_port_start=0` in containers. `PUID`/`PGID`
-overrides are not supported by this build.
+overrides are not supported by this build (fixed to 1000).
 
 The [`build-npm-image.yml`](.github/workflows/build-npm-image.yml) workflow
 publishes it as `ghcr.io/jeremiemercier/gladys-nginx-proxy-manager-npm:2`
