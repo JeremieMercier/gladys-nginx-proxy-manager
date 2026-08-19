@@ -76,8 +76,8 @@
       "type": "section",
       "label": { "en": "Expose your services", "fr": "Exposer vos services" },
       "description": {
-        "en": "Gladys assigned the ports {{port:http}} (HTTP) and {{port:https}} (HTTPS) to the proxy. To serve your domains from the internet, forward ports 80 and 443 of your router to these two ports on the Gladys machine.",
-        "fr": "Gladys a assigné les ports {{port:http}} (HTTP) et {{port:https}} (HTTPS) au proxy. Pour servir vos domaines depuis internet, redirigez les ports 80 et 443 de votre box vers ces deux ports de la machine Gladys."
+        "en": "To serve your domains from the internet, forward port 443 of your router to port {{port:https}} on the Gladys machine — that is the only essential one, your sites are served encrypted (HTTPS). Port 80 (to {{port:http}}) is optional and must never serve content: it is only used by Let's Encrypt to issue/renew your certificates (default method) and to redirect visitors typing http:// to https://. If you open it, enable \"Force SSL\" on your hosts in NPM; if you keep it closed, use the DNS challenge for your certificates.",
+        "fr": "Pour servir vos domaines depuis internet, redirigez le port 443 de votre box vers le port {{port:https}} de la machine Gladys — c'est le seul indispensable, vos sites sont servis chiffrés (HTTPS). Le port 80 (vers {{port:http}}) est optionnel et ne doit jamais servir de contenu : il sert uniquement à Let's Encrypt pour délivrer/renouveler vos certificats (méthode par défaut) et à rediriger les visiteurs qui tapent http:// vers https://. Si vous l'ouvrez, activez « Force SSL » sur vos hosts dans NPM ; si vous le laissez fermé, utilisez le défi DNS pour vos certificats."
       }
     }
   ],

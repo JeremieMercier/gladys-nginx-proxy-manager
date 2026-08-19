@@ -43,9 +43,25 @@ l'écran de configuration, sections « Exposer vos services ») :
 - le port **HTTP** correspond au port 80 interne de NPM ;
 - le port **HTTPS** correspond au port 443 interne.
 
-Sur votre box/routeur, redirigez les ports 80 et 443 vers ces deux ports de la
-machine Gladys pour que vos domaines et les challenges Let's Encrypt
-fonctionnent.
+Sur votre box/routeur :
+
+- **Redirigez le port 443** (vers le port HTTPS assigné) : c'est le seul
+  indispensable. Vos sites sont servis chiffrés, et personne ne peut lire ce
+  qui transite.
+- **Le port 80 est optionnel** (vers le port HTTP assigné) et ne doit jamais
+  servir vos sites en clair. Il n'a que deux usages légitimes :
+  - permettre à Let's Encrypt de vérifier votre domaine pour délivrer et
+    renouveler vos certificats (c'est sa méthode par défaut) ;
+  - rediriger automatiquement les visiteurs qui tapent `http://` vers
+    `https://`.
+
+  Si vous l'ouvrez, activez l'option **Force SSL** sur chacun de vos proxy
+  hosts dans NPM : tout ce qui arrive en HTTP est alors immédiatement
+  redirigé vers HTTPS, rien n'est servi en clair.
+- Si vous préférez **ne pas ouvrir le port 80 du tout** : dans NPM, demandez
+  vos certificats avec un **défi DNS** (« Use a DNS Challenge » à la demande
+  du certificat) — Let's Encrypt vérifie alors votre domaine sans passer par
+  le port 80.
 
 ## Où sont mes données ?
 
