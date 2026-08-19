@@ -67,8 +67,8 @@
       "type": "section",
       "label": { "en": "Access the portal", "fr": "Accéder au portail" },
       "description": {
-        "en": "The admin portal is available at http://{{gladys_host}}:{{port:admin}} (also via the \"Open\" link on this screen). On your first visit, Nginx Proxy Manager asks you to create the administrator account.",
-        "fr": "Le portail d'administration est disponible sur http://{{gladys_host}}:{{port:admin}} (également via le lien « Ouvrir » de cet écran). À la première visite, Nginx Proxy Manager vous demande de créer le compte administrateur."
+        "en": "The admin portal is available at http://{{gladys_host}}:{{port:admin}} — also one click away via the \"Open NPM admin portal\" button on the Supervision screen. On your first visit, Nginx Proxy Manager asks you to create the administrator account.",
+        "fr": "Le portail d'administration est disponible sur http://{{gladys_host}}:{{port:admin}} — accessible aussi en un clic via le bouton « Ouvrir Portail d'administration NPM » de l'écran Supervision. À la première visite, Nginx Proxy Manager vous demande de créer le compte administrateur."
       }
     },
     {
