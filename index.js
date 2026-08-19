@@ -77,10 +77,22 @@ async function initialize() {
   clearTimeout(retryTimer);
   try {
     const container = await ensureContainerRunning();
-    const candidates = buildCandidateUrls(container);
+    const adminPort = (container.ports ?? []).find(
+      (port) => port.container_port === ADMIN_CONTAINER_PORT,
+    );
+    const candidates = buildCandidateUrls(adminPort);
     const { health, baseUrl } = await waitForNpm({ candidates });
     npmBaseUrl = baseUrl;
-    logger.info(`Nginx Proxy Manager v${formatVersion(health)} is ready at ${baseUrl}`);
+    logger.info(
+      `Nginx Proxy Manager v${formatVersion(health)} is ready (health check via ${baseUrl})`,
+    );
+    // The real portal URL for the user: the LAN IP of the Gladys machine is
+    // not knowable from inside the Docker network, but the host port is.
+    if (adminPort?.host_port) {
+      logger.info(
+        `Admin portal: http://<IP-of-your-Gladys-machine>:${adminPort.host_port} — one click away via the "Open" button in the Supervision screen`,
+      );
+    }
     await gladys.setConnectionStatus(true);
   } catch (err) {
     logger.error('NPM initialization failed', err);
@@ -145,12 +157,10 @@ async function ensureContainerRunning() {
 // Ways to reach the NPM API, most direct first: the private DNS alias of the
 // sub-container, then — in case that network path fails — its admin port as
 // published on the Docker host, whose address is the host of the Gladys API
-// URL the supervisor gave us.
-function buildCandidateUrls(container) {
+// URL the supervisor gave us. These are Docker-internal health-check URLs,
+// NOT the portal URL users open in their browser.
+function buildCandidateUrls(adminPort) {
   const candidates = [NPM_INTERNAL_URL];
-  const adminPort = (container.ports ?? []).find(
-    (port) => port.container_port === ADMIN_CONTAINER_PORT,
-  );
   const gladysApiUrl = process.env.GLADYS_HOST_API_URL;
   if (adminPort?.host_port && gladysApiUrl) {
     try {
@@ -160,7 +170,9 @@ function buildCandidateUrls(container) {
       logger.warn(`Cannot parse GLADYS_HOST_API_URL (${gladysApiUrl}) for the fallback URL`);
     }
   }
-  logger.info(`NPM candidate URLs: ${candidates.join(', ')}`);
+  logger.info(
+    `Health-check URLs (Docker-internal, not for your browser): ${candidates.join(', ')}`,
+  );
   return candidates;
 }
 
