@@ -21,6 +21,7 @@
 
 import { GladysIntegration, logger } from '@gladysassistant/integration-sdk';
 import { getNpmHealth, waitForNpm, formatVersion, NPM_INTERNAL_URL } from './src/npmApi.js';
+import { checkNpmVolumes, describeVolumeResults } from './src/diagnostics.js';
 
 const gladys = new GladysIntegration();
 
@@ -83,17 +84,39 @@ async function initialize() {
     await gladys.setConnectionStatus(true);
   } catch (err) {
     logger.error('NPM initialization failed', err);
-    await gladys
-      .setConnectionStatus(false, {
-        en: 'Nginx Proxy Manager is not responding, check the npm container logs.',
-        fr: 'Nginx Proxy Manager ne répond pas, consultez les logs du conteneur npm.',
-      })
-      .catch(() => {});
+    const message = await diagnoseFailure();
+    await gladys.setConnectionStatus(false, message).catch(() => {});
     logger.info(`Retrying the NPM initialization in ${RETRY_DELAY_MS / 1000}s`);
     retryTimer = setTimeout(() => initialize(), RETRY_DELAY_MS);
   } finally {
     initializing = false;
   }
+}
+
+// When NPM does not come up, probe its volume folders (same uid as the NPM
+// processes) to turn the most likely root cause — a volume permissions
+// problem — into an explicit Configuration-screen message instead of a
+// generic "check the logs".
+async function diagnoseFailure() {
+  const generic = {
+    en: 'Nginx Proxy Manager is not responding, check the npm container logs.',
+    fr: 'Nginx Proxy Manager ne répond pas, consultez les logs du conteneur npm.',
+  };
+  try {
+    const { ok, results } = await checkNpmVolumes();
+    for (const line of describeVolumeResults(results)) {
+      logger.info(`Volume probe: ${line} (integration uid ${process.getuid?.() ?? '?'})`);
+    }
+    if (ok === false) {
+      return {
+        en: 'The NPM data folders are not writable (permissions problem on the volumes): see the integration logs for the folder owners, and report this on the integration repository.',
+        fr: "Les dossiers de données de NPM ne sont pas accessibles en écriture (problème de permissions sur les volumes) : les logs de l'intégration montrent les propriétaires des dossiers, signalez-le sur le dépôt de l'intégration.",
+      };
+    }
+  } catch (probeErr) {
+    logger.warn(`Volume probe failed: ${probeErr.message}`);
+  }
+  return generic;
 }
 
 // The manifest declares `start: "auto"`, so the supervisor normally starts the

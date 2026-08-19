@@ -45,6 +45,30 @@ configuration screen, "Expose your services" section):
 On your router, forward ports 80 and 443 to these two ports of the Gladys
 machine so your domains and the Let's Encrypt challenges work.
 
+## Where is my data?
+
+The Nginx Proxy Manager data lives on the machine hosting Gladys, inside the
+integration data folder:
+
+```
+/var/lib/gladysassistant/external-integrations/<identifier>/containers/npm/
+├─ data/               # SQLite database (proxy hosts, accounts, settings),
+│                      # generated nginx configurations, logs
+└─ etc/letsencrypt/    # Let's Encrypt certificates and account keys
+```
+
+(`<identifier>` depends on your install — visible with `docker inspect` on
+the `npm` container, mounts column.)
+
+These folders survive restarts and updates. However, **uninstalling the
+integration may remove them**: make a copy before any uninstall, and include
+this path in your usual backups:
+
+```bash
+sudo tar czf ~/backup-npm-$(date +%F).tar.gz \
+  /var/lib/gladysassistant/external-integrations/*/containers/npm
+```
+
 ## Good to know
 
 - This integration creates no device in Gladys: NPM is managed from its own
