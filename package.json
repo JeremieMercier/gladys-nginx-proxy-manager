@@ -2,7 +2,7 @@
   "name": "gladys-nginx-proxy-manager",
   "version": "1.0.1",
   "private": true,
-  "description": "Gladys Assistant integration for Nginx Proxy Manager: enable/disable proxy hosts and monitor hosts and certificates.",
+  "description": "Gladys Assistant integration that installs and runs Nginx Proxy Manager as a supervised sub-container, with one-click access to its admin portal.",
   "type": "module",
   "main": "index.js",
   "scripts": {
